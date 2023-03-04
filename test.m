@@ -9,171 +9,218 @@
 
 % one way to simplify: select only one trial per person, and only select trials w/o bad channels
 
-%% Raw MEG Matrix
+%% Loading Data
 
-Fs = data.fsample; % sampling frequency
-N = size(data.label,1); % number of channels
-seg = size(data.trial,2); % each segment: 2 sec, 1018 samples
-time = linspace(0,2*seg,1018*seg); % time vector (unit: seconds)
+data1 = load("Data/100307_MEG_5-Restin_rmegpreproc.mat");
+data2 = load("Data/");
+data3 = load("Data/");
+data4 = load("Data/");
+data5 = load("Data/");
+data6 = load("Data/");
+data7 = load("Data/");
+data8 = load("Data/");
+data9 = load("Data/");
+data10 = load("Data/");
 
-MEG_raw = zeros(N,length(time)); % MEG raw signal matrix
-for i = 1:seg
-    MEG_raw(:,(i-1)*1018+1 : i*1018) = data.trial{i};
-end
+DATA = {data1, data2, data3, data4, data5, data6, data7, data8, data9, data10};
 
-%% Test Matrix
+%% Variables
 
-Fs = 508.63;
-N = 50;
-time = linspace(0,2*50,1018*50);
+% sampling frequency
+% Fs = data.fsample; 
+Fs = 508.6275; % should be same for all data files
 
-MEG_raw = rand(N, length(time));
+% number of channels
+% N = size(data.label,1); 
+N = 246; % only choose data files with 246 channels
 
-%% Filter alpha waves
+% each segment: 2 sec, 1018 samples
+% seg = size(data.trial,2); 
+seg = 100; % take the first 100 segments
 
-% Alpha bandpass filtering
-alpha_low = 8;
-alpha_high = 12;
-[b, a] = butter(2, [alpha_low, alpha_high]*2/Fs, 'bandpass');
+% time vector (unit: seconds)
+time = linspace(0,2*seg,1018*seg);
+lenT = length(time);
 
-% MEG filtered signal matrix
-MEG_filtered = zeros(2*N,length(time)); 
-
-% Filling up rows 1 to N (alpha)
-for s = 1:N
-    filteredAlpha = filtfilt(b, a, MEG_raw(s,:)); %--> s-th row of the matrix
-    MEG_filtered(s,:) = filteredAlpha;
-end
-
-%% Filter beta waves
-
-% Beta bandpass filtering
-beta_low = 12;
-beta_high = 30;
-[b, a] = butter(2, [beta_low, beta_high]*2/Fs, 'bandpass');
-
-% Filling up rows N+1 to 2N (beta)
-for s = 1:N
-    filteredBeta = filtfilt(b, a, MEG_raw(s,:)); %--> (s+N)th row of the matrix
-    MEG_filtered(s+N,:) = filteredBeta;
-end
-
-%% Plot for the k-th channel
-
-% k = N-2;
-% 
-% figure
-% plot(time,MEG_raw(k,:));
-% hold on
-% plot(time,MEG_filtered(k,:));
-% plot(time,MEG_filtered(k+N,:));
-% hold off
-% legend("original","alpha","beta");
-
-%% Base Adjacency Matrix (A)
-% Also remove non-sifnificant edges
-
-A = zeros(2*N);
-
-thres = 0.01; % threshold of correlation coefficient
-
-for i = 1:2*N
-    for j = 1:2*N
-        C = corrcoef(MEG_filtered(i,:),MEG_filtered(j,:));
-        if C > thres
-            A(i,j) = C(1,2);
-        else
-            A(i,j) = 0;
-        end
-    end
-end
-
-%% Prepare the submatrices of each of the four networks
-
-% 4 sub-matrices
-Ma = A(1:N, 1:N);
-Mb = A(N+1:2*N, N+1:2*N);
-Pab_Het_L = A(1:N, N+1:2*N);
-Pba_Het_L = A(N+1:2*N, 1:N);
-
-% Mean Interlayer Edge Weight
-W = mean(Pab_Het_L, "all"); % --> for homogeneous networks
-
-% Het Plex
-Pab_Het_P = Pab_Het_L .* eye(N); % element-wise multiplication with identity matrix
-Pba_Het_P = Pba_Het_L .* eye(N); % only diagonals of interlayer matrices remain
-
-% Hom Layer
-Pab_Hom_L = W * ones(N);
-
-% Hom Plex
-Pab_Hom_P = W * eye(N);
+% threshold of correlation
+thres = 0.01;
 
 % parameter p
 p = 0:0.0001:1.5;
-len = length(p);
+lenP = length(p);
 
-%% Calculate the lambda2 and Sp for each network
+%% Test Matrix
 
-% A -- Adjacency Matrix
-% D -- Degree Matrix
-% L -- Laplacian Matrix
-    % L = D - A;
+% Fs = 508.63;
+% N = 50;
+% time = linspace(0,2*50,1018*50);
+% 
+% MEG_raw = rand(N, length(time));
 
-% Heterogeneous Multi-Layer Network (Het_L)
-[L2_Het_L, Sp_Het_L] = calc(N, p, Ma, Mb, Pab_Het_L, Pba_Het_L);
+%% Data Processing
 
-% Heterogeneous Multi-Plex Network (Het_P)
-[L2_Het_P, Sp_Het_P] = calc(N, p, Ma, Mb, Pab_Het_P, Pba_Het_P);
+L2_Het_L_Tab = zeros(10,lenP);
+L2_Het_P_Tab = zeros(10,lenP);
+L2_Hom_L_Tab = zeros(10,lenP);
+L2_Hom_P_Tab = zeros(10,lenP);
 
-% Homogeneous Multi-Layer Network (Hom_L)
-[L2_Hom_L, Sp_Hom_L] = calc(N, p, Ma, Mb, Pab_Hom_L, Pab_Hom_L);
+STD_Tab = zeros(10,4);
+PME_Tab = zeros(10,4);
 
-% Homogeneous Multi-Plex Network (Hom_P)
-[L2_Hom_P, Sp_Hom_P] = calc(N, p, Ma, Mb, Pab_Hom_P, Pab_Hom_P);
+for i = 1:10
 
-%% Calculate standard deviation of all interlayer edge weights
+    data = DATA{i}.data;
 
-Pab_Het_L2 = Pab_Het_L;
-Pab_Het_P2 = Pab_Het_P;
-Pab_Hom_L2 = Pab_Hom_L;
-Pab_Hom_P2 = Pab_Hom_P;
+    % constructing meg_raw matrix 
+    meg_raw = megraw(data, N, lenT, seg);
 
-Pab_Het_L2(Pab_Het_L2 == 0) = NaN;
-Pab_Het_P2(Pab_Het_P2 == 0) = NaN;
-Pab_Hom_L2(Pab_Hom_L2 == 0) = NaN;
-Pab_Hom_P2(Pab_Hom_P2 == 0) = NaN;
+    % filtering meg_raw into alpha and beta frequencies --> meg_filt
+    meg_filt = filt(meg_raw, N, lenT, Fs);
 
-std_Het_L = std(Pab_Het_L2, [], "all", "omitnan");
-std_Het_P = std(Pab_Het_P2, [], "all", "omitnan");
-std_Hom_L = std(Pab_Hom_L2, [], "all", "omitnan"); % should be 0
-std_Hom_P = std(Pab_Hom_P2, [], "all", "omitnan"); % should be 0
+    % obtaining base adjacency matrix & remove below-threshold edges
+    A = adj(meg_filt, N, thres);
 
-stdTab = [std_Het_L std_Het_P; std_Hom_L std_Hom_P]; % tabulate
+    % constructing heterogeneous/homogeneous multilayer/multiplex networks
+    [Ma, Mb, Pab_Het_L, Pba_Het_L, Pab_Het_P, Pba_Het_P, W, Pab_Hom_L, Pab_Hom_P] = prep(A,N);
 
-%% Calculate the percentage of missing interlayer edges (PercentME) for each network
+    % calculating Lambda2 for each network
+    L2_Het_L = calc(N, p, len, Ma, Mb, Pab_Het_L, Pba_Het_L);
+    L2_Het_P = calc(N, p, len, Ma, Mb, Pab_Het_P, Pba_Het_P);
+    L2_Hom_L = calc(N, p, len, Ma, Mb, Pab_Hom_L, Pab_Hom_L);
+    L2_Hom_P = calc(N, p, len, Ma, Mb, Pab_Hom_P, Pab_Hom_P);
 
-PercentME_Het_L = (numel(Pab_Het_L)-nnz(Pab_Het_L))/numel(Pab_Het_L);
-PercentME_Het_P = (numel(Pab_Het_P)-nnz(Pab_Het_P))/numel(Pab_Het_P);
-PercentME_Hom_L = (numel(Pab_Hom_L)-nnz(Pab_Hom_L))/numel(Pab_Hom_L);
-PercentME_Hom_P = (numel(Pab_Hom_P)-nnz(Pab_Hom_P))/numel(Pab_Hom_P);
-
-percentMETab = [PercentME_Het_L PercentME_Het_P; PercentME_Hom_L PercentME_Hom_P]; % tabulate
-
-%% plotting the graph
-
-plot(p, L2_Het_L, p, L2_Het_P, p, L2_Hom_L, p, L2_Hom_P) % p as x axis
-legend('Heterogeneous Multilayer', 'Heterogeneous Multiplex', 'Homogeneous Multilayer', 'Homogeneous Multiplex')
-xlabel('p');
-ylabel('Lambda2 values');
-
-%% Function that calculates the Laplacian matrix for each network and loops through Sp
-
-function [L2, Sp] = calc(N, p, Ma, Mb, Pab, Pba)
+    L2_Het_L_Tab(i,:) = L2_Het_L;
+    L2_Het_P_Tab(i,:) = L2_Het_P;
+    L2_Hom_L_Tab(i,:) = L2_Hom_L;
+    L2_Hom_P_Tab(i,:) = L2_Hom_P;
     
-    len = length(p);
+    % calculating std of interlayer edges for each network
+    STD = interstd(Pab_Het_L, Pab_Het_P, Pab_Hom_L, Pab_Hom_P);
+    STD_Tab(i,:) = STD;
+
+    % calculating percent of missing interlayer edges for each network
+    PME = pme(Pab_Het_L, Pab_Het_P, Pab_Hom_L, Pab_Hom_P);
+    PME_Tab(i,:) = PME;
+
+end
+
+%% Average over 10 trials
+
+AvgL2_Het_L = mean(L2_Het_L_Tab);
+AvgL2_Het_P = mean(L2_Het_P_Tab);
+AvgL2_Hom_L = mean(L2_Hom_L_Tab);
+AvgL2_Hom_P = mean(L2_Hom_P_Tab);
+
+AvgSTD = mean(STD_Tab);
+AvgPME = mean(PME_Tab);
+
+%% Plotting the graph
+
+% X-axis: p; Y-axis: Lambda2
+plot(p, AvgL2_Het_L, "bo");
+hold on
+plot(p, AvgL2_Het_P, "ro");
+plot(p, AvgL2_Hom_L, Color="#EDB120", Marker="o",LineStyle="none");
+plot(p, AvgL2_Hom_P, "ko");
+hold off
+
+legend('Multilayer', 'Multiplex', 'Homogeneous Multilayer', 'Homogeneous Multiplex');
+xlabel('p');
+ylabel('\lambda_2');
+
+
+%% Function: MEG raw matrix
+
+function meg_raw = megraw(data, N, lenT, seg)
+
+    meg_raw = zeros(N,lenT); 
+    
+    for i = 1:seg
+        meg_raw(:,(i-1)*1018+1 : i*1018) = data.trial{i};
+    end
+
+end
+
+%% Function: Filtering (alpha & beta)
+
+function meg_filt = filt(meg_raw, N, lenT, Fs)
+
+    % MEG filtered signal matrix
+    meg_filt = zeros(2*N, lenT);
+    
+    % Alpha bandpass filtering
+    alpha_low = 8;
+    alpha_high = 12;
+    [b, a] = butter(2, [alpha_low, alpha_high]*2/Fs, 'bandpass');
+    
+    % Filling up rows 1 to N (alpha)
+    for s = 1:N
+        filteredAlpha = filtfilt(b, a, meg_raw(s,:)); %--> s-th row of the matrix
+        meg_filt(s,:) = filteredAlpha;
+    end
+    
+    % Beta bandpass filtering
+    beta_low = 12;
+    beta_high = 30;
+    [b, a] = butter(2, [beta_low, beta_high]*2/Fs, 'bandpass');
+    
+    % Filling up rows N+1 to 2N (beta)
+    for s = 1:N
+        filteredBeta = filtfilt(b, a, meg_raw(s,:)); %--> (s+N)th row of the matrix
+        meg_filt(s+N,:) = filteredBeta;
+    end
+
+end
+
+%% Function: Base Adjacency Matrix (A) + Remove below-threshold edges
+
+function adj = adj(meg_filt, N, thres)
+
+    adj = zeros(2*N);
+        
+    for i = 1:2*N
+        for j = 1:2*N
+            C = corrcoef(meg_filt(i,:),meg_filt(j,:));
+            if C > thres
+                adj(i,j) = C(1,2);
+            else
+                adj(i,j) = 0;
+            end
+        end
+    end
+    
+end
+
+%% Function: Prepare the submatrices of each of the four networks
+
+function [Ma, Mb, Pab_Het_L, Pba_Het_L, Pab_Het_P, Pba_Het_P, W, Pab_Hom_L, Pab_Hom_P] = prep(A,N)
+
+    % 4 sub-matrices
+    Ma = A(1:N, 1:N);
+    Mb = A(N+1:2*N, N+1:2*N);
+    Pab_Het_L = A(1:N, N+1:2*N);
+    Pba_Het_L = A(N+1:2*N, 1:N);
+        
+    % Het Plex
+    Pab_Het_P = Pab_Het_L .* eye(N); % element-wise multiplication with identity matrix
+    Pba_Het_P = Pba_Het_L .* eye(N); % only diagonals of interlayer matrices remain
+    
+    % Mean Interlayer Edge Weight
+    W = mean(Pab_Het_L, "all"); % --> for homogeneous networks
+
+    % Hom Layer
+    Pab_Hom_L = W * ones(N);
+    
+    % Hom Plex
+    Pab_Hom_P = W * eye(N);
+
+end
+
+%% Function: calculate Lambda 2 for each network
+
+function L2 = calc(N, p, len, Ma, Mb, Pab, Pba)
+    
     L2 = ones(1,len);
-    Sp = ones(1,len);
 
     for k = 1:len
         
@@ -195,10 +242,41 @@ function [L2, Sp] = calc(N, p, Ma, Mb, Pab, Pba)
         lambda2 = max(eigs(L,2,'smallestabs'));
         L2(k) = lambda2;
         
-        % Sp
-        sp = sum(p(k)*Pab, "all");
-        Sp(k) = sp;
-
     end
 end
 
+%% Function: Calculate std of interlayer edge weight for each network
+
+function stdTab = interstd(Pab_Het_L, Pab_Het_P, Pab_Hom_L, Pab_Hom_P)
+
+    Pab_Het_L2 = Pab_Het_L;
+    Pab_Het_P2 = Pab_Het_P;
+    Pab_Hom_L2 = Pab_Hom_L;
+    Pab_Hom_P2 = Pab_Hom_P;
+    
+    Pab_Het_L2(Pab_Het_L2 == 0) = NaN;
+    Pab_Het_P2(Pab_Het_P2 == 0) = NaN;
+    Pab_Hom_L2(Pab_Hom_L2 == 0) = NaN;
+    Pab_Hom_P2(Pab_Hom_P2 == 0) = NaN;
+    
+    std_Het_L = std(Pab_Het_L2, [], "all", "omitnan");
+    std_Het_P = std(Pab_Het_P2, [], "all", "omitnan");
+    std_Hom_L = std(Pab_Hom_L2, [], "all", "omitnan"); % should be 0
+    std_Hom_P = std(Pab_Hom_P2, [], "all", "omitnan"); % should be 0
+    
+    stdTab = [std_Het_L std_Het_P std_Hom_L std_Hom_P]; % tabulate
+
+end
+
+%% Function: Calculate % of missing edges for each network
+
+function pmeTab = pme(Pab_Het_L, Pab_Het_P, Pab_Hom_L, Pab_Hom_P)
+
+    pme_Het_L = (numel(Pab_Het_L)-nnz(Pab_Het_L))/numel(Pab_Het_L);
+    pme_Het_P = (numel(Pab_Het_P)-nnz(Pab_Het_P))/numel(Pab_Het_P);
+    pme_Hom_L = (numel(Pab_Hom_L)-nnz(Pab_Hom_L))/numel(Pab_Hom_L);
+    pme_Hom_P = (numel(Pab_Hom_P)-nnz(Pab_Hom_P))/numel(Pab_Hom_P);
+    
+    pmeTab = [pme_Het_L pme_Het_P pme_Hom_L pme_Hom_P]; % tabulate
+
+end
