@@ -7,8 +7,6 @@
 % data.time -- 2 second time intervals, not very informative
 % data.label -- label of each channel (bad channels removed)
 
-% one way to simplify: select only one trial per person, and only select trials w/o bad channels
-
 %% Loading Data
 
 data1 = load("Data/100307_MEG_5-Restin_rmegpreproc.mat");
@@ -29,10 +27,6 @@ DATA = {data1, data2, data3, data4, data5, data6, data7, data8, data9, data10};
 % sampling frequency
 % Fs = data.fsample; 
 Fs = 508.6275; % should be same for all data files
-
-% number of channels
-% N = size(data.label,1); 
-N = 246; % only choose data files with 246 channels
 
 % each segment: 2 sec, 1018 samples
 % seg = size(data.trial,2); 
@@ -69,7 +63,10 @@ PME_Tab = zeros(10,4);
 
 for i = 1:10
 
-    data = DATA{i}.data;
+    data = DATA{i}.data; % for each individual:
+
+    % number of channels
+    N = size(data.label,1);
 
     % constructing meg_raw matrix 
     meg_raw = megraw(data, N, lenT, seg);
