@@ -9,16 +9,16 @@
 
 %% Loading Data
 
-data1 = load("Data/100307_MEG_5-Restin_rmegpreproc.mat");
-data2 = load("Data/");
-data3 = load("Data/");
-data4 = load("Data/");
-data5 = load("Data/");
-data6 = load("Data/");
-data7 = load("Data/");
-data8 = load("Data/");
-data9 = load("Data/");
-data10 = load("Data/");
+data1 = load("154532_MEG_3-Restin_rmegpreproc.mat");
+data2 = load("158136_MEG_5-Restin_rmegpreproc.mat");
+data3 = load("162026_MEG_4-Restin_rmegpreproc.mat");
+data4 = load("175237_MEG_3-Restin_rmegpreproc.mat");
+data5 = load("212823_MEG_5-Restin_rmegpreproc.mat");
+data6 = load("223929_MEG_3-Restin_rmegpreproc.mat");
+data7 = load("293748_MEG_4-Restin_rmegpreproc.mat");
+data8 = load("660951_MEG_3-Restin_rmegpreproc.mat");
+data9 = load("725751_MEG_4-Restin_rmegpreproc.mat");
+data10 = load("825048_MEG_4-Restin_rmegpreproc.mat");
 
 DATA = {data1, data2, data3, data4, data5, data6, data7, data8, data9, data10};
 
@@ -81,10 +81,10 @@ for i = 1:10
     [Ma, Mb, Pab_Het_L, Pba_Het_L, Pab_Het_P, Pba_Het_P, W, Pab_Hom_L, Pab_Hom_P] = prep(A,N);
 
     % calculating Lambda2 for each network
-    L2_Het_L = calc(N, p, len, Ma, Mb, Pab_Het_L, Pba_Het_L);
-    L2_Het_P = calc(N, p, len, Ma, Mb, Pab_Het_P, Pba_Het_P);
-    L2_Hom_L = calc(N, p, len, Ma, Mb, Pab_Hom_L, Pab_Hom_L);
-    L2_Hom_P = calc(N, p, len, Ma, Mb, Pab_Hom_P, Pab_Hom_P);
+    L2_Het_L = calc(N, p, lenP, Ma, Mb, Pab_Het_L, Pba_Het_L);
+    L2_Het_P = calc(N, p, lenP, Ma, Mb, Pab_Het_P, Pba_Het_P);
+    L2_Hom_L = calc(N, p, lenP, Ma, Mb, Pab_Hom_L, Pab_Hom_L);
+    L2_Hom_P = calc(N, p, lenP, Ma, Mb, Pab_Hom_P, Pab_Hom_P);
 
     L2_Het_L_Tab(i,:) = L2_Het_L;
     L2_Het_P_Tab(i,:) = L2_Het_P;
@@ -114,16 +114,34 @@ AvgPME = mean(PME_Tab);
 %% Plotting the graph
 
 % X-axis: p; Y-axis: Lambda2
-plot(p, AvgL2_Het_L, "bo");
+figure
+subplot(2,1,1);
+plot(p, AvgL2_Het_L, "b-","LineWidth",2);
 hold on
-plot(p, AvgL2_Het_P, "ro");
-plot(p, AvgL2_Hom_L, Color="#EDB120", Marker="o",LineStyle="none");
-plot(p, AvgL2_Hom_P, "ko");
+plot(p, AvgL2_Hom_L, "Color","#EDB120","LineStyle","-", "LineWidth",2);
 hold off
-
-legend('Multilayer', 'Multiplex', 'Homogeneous Multilayer', 'Homogeneous Multiplex');
-xlabel('p');
+legend("Multilayer","Homogeneous Multilayer");
+xticks(0:0.1:1.5);
+ax = gca;
+ax.XMinorTick='on';
 ylabel('\lambda_2');
+ylim([100 400]);
+ax.YMinorTick='on';
+
+subplot(2,1,2);
+plot(p, AvgL2_Het_P, "r-","LineWidth",2);
+hold on
+plot(p, AvgL2_Hom_P, "k-","LineWidth",2);
+hold off
+legend("Multiplex","Homogeneous Multiplex");
+
+xlabel('p');
+xticks(0:0.1:1.5);
+ax = gca;
+ax.XMinorTick='on';
+ylabel('\lambda_2');
+ylim([56.7 56.85]);
+ax.YMinorTick='on';
 
 
 %% Function: MEG raw matrix
